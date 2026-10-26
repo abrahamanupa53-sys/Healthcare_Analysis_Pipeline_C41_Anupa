@@ -1,6 +1,6 @@
 # Healthcare Data Pipeline (Azure Data Factory)
 
-Bootcamp Project 1 · Instructor: Mallikarjun Appani
+Project 1. Individual project by Anupa
 
 ## Project overview
 An end-to-end Azure pipeline for four healthcare CSV files (patient, hospital, diagnosis, visit).
@@ -19,7 +19,7 @@ An end-to-end Azure pipeline for four healthcare CSV files (patient, hospital, d
 |---|---|
 | `Documentation/` | `Step_X_Description.docx` for each step (steps, configuration, code snippets, challenges), source inventory and DQ rules, diagrams |
 | `Code/sql/` | `create_tables.sql`, `alter_add_audit_columns.sql`, `validation_queries.sql` |
-| `Code/adf/` | ADF pipeline, data flow, dataset and linked service JSON exports |
+| `Code/adf/` | ADF pipelines, data flows, datasets and linked services (JSON, synced by ADF Git integration) |
 | `Code/sample_data/` | Original source files (batch 1, never edited) |
 | `Code/test_data/` | Extra test files with deliberate errors (for future testing) |
 | `Screenshots/` | `Step_X_Screenshot_Y.png` evidence; see `Screenshots/screenshot_checklist.md` |
@@ -37,11 +37,11 @@ An end-to-end Azure pipeline for four healthcare CSV files (patient, hospital, d
 
 ## Setup steps
 1. Create the resource group, VM, storage account (hierarchical namespace on) with `landing` and `staging` containers, Key Vault, Data Factory and Azure SQL database.
-2. Install the Self-hosted IR on the VM, register it, and run `dmgcmd -DisableLocalFolderPathValidation` (as admin). Locally copy the four sample CSVs (received via WhatsApp; also in `Code/sample_data/`) onto the VM and save them in `C:\Healthcaresource`.
+2. Install the Self-hosted IR on the VM, register it, and run `dmgcmd -DisableLocalFolderPathValidation` (as admin). Locally copy the four provided CSV files (also in `Code/sample_data/`) onto the VM and save them in `C:\Healthcaresource`.
 3. Add secrets `vm-password` and `sql-password` to Key Vault.
 4. Give the ADF managed identity **Key Vault Secrets User** (Key Vault) and **Storage Blob Data Contributor** (storage).
 5. Run `Code/sql/create_tables.sql` in the SQL Query editor (existing tables: run `alter_add_audit_columns.sql`).
-6. Import the ADF objects from `Code/adf/` (ARM template import, or recreate from the JSON), then **Publish all**.
+6. Connect ADF to this GitHub repo (Manage > Git configuration, root folder `/Code/adf`) so the pipelines load from `Code/adf/`, then **Publish all**.
 7. Create alert `alert_pipeline_failed` (Failed pipeline runs > 0) with an email action group.
 
 ## Execution order
