@@ -1,0 +1,261 @@
+{
+	"name": "pl_staging",
+	"properties": {
+		"activities": [
+			{
+				"name": "df_patient",
+				"type": "ExecuteDataFlow",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataflow": {
+						"referenceName": "df_staging_patient",
+						"type": "DataFlowReference",
+						"parameters": {
+							"runId": {
+								"value": "'@{pipeline().parameters.runId}'",
+								"type": "Expression"
+							}
+						},
+						"datasetParameters": {
+							"srcPatient": {
+								"folderPath": {
+									"value": "@concat('patient/', pipeline().parameters.runDate, '/', pipeline().parameters.runId)",
+									"type": "Expression"
+								},
+								"fileName": "patient_raw.csv"
+							},
+							"sinkAccepted": {
+								"folderPath": {
+									"value": "@concat('patient/accepted/', pipeline().parameters.runId)",
+									"type": "Expression"
+								}
+							},
+							"sinkRejected": {
+								"folderPath": {
+									"value": "@concat('patient/rejected/', pipeline().parameters.runId)",
+									"type": "Expression"
+								}
+							}
+						}
+					},
+					"compute": {
+						"coreCount": 8,
+						"computeType": "General"
+					},
+					"traceLevel": "None",
+					"cacheSinks": {
+						"firstRowOnly": true
+					}
+				}
+			},
+			{
+				"name": "df_hospital",
+				"type": "ExecuteDataFlow",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataflow": {
+						"referenceName": "df_staging_Hospital",
+						"type": "DataFlowReference",
+						"parameters": {
+							"runId": "'38682d12-454e-4ea8-9ccc-11e66ab5069a'"
+						},
+						"datasetParameters": {
+							"srcHospital": {
+								"folderPath": {
+									"value": "@concat('hospital/', pipeline().parameters.runDate, '/', pipeline().parameters.runId)",
+									"type": "Expression"
+								},
+								"fileName": "hospital_raw.csv"
+							},
+							"sinkAccepted": {
+								"folderPath": {
+									"value": "@concat('hospital/accepted/', pipeline().parameters.runId)",
+									"type": "Expression"
+								}
+							},
+							"sinkRejected": {
+								"folderPath": {
+									"value": "@concat('hospital/rejected/', pipeline().parameters.runId)",
+									"type": "Expression"
+								}
+							}
+						}
+					},
+					"compute": {
+						"coreCount": 8,
+						"computeType": "General"
+					},
+					"traceLevel": "Fine"
+				}
+			},
+			{
+				"name": "df_diagnosis",
+				"type": "ExecuteDataFlow",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataflow": {
+						"referenceName": "df_staging_diagnosis",
+						"type": "DataFlowReference",
+						"parameters": {
+							"runId": {
+								"value": "'@{pipeline().parameters.runId}'",
+								"type": "Expression"
+							}
+						},
+						"datasetParameters": {
+							"srcDiagnosis": {
+								"folderPath": {
+									"value": "@concat('diagnosis/', pipeline().parameters.runDate, '/', pipeline().parameters.runId)",
+									"type": "Expression"
+								},
+								"fileName": "diagnosis_raw.csv"
+							},
+							"sinkAccepted": {
+								"folderPath": {
+									"value": "@concat('diagnosis/accepted/', pipeline().parameters.runId)",
+									"type": "Expression"
+								}
+							},
+							"sinkRejected": {
+								"folderPath": {
+									"value": "@concat('diagnosis/rejected/', pipeline().parameters.runId)",
+									"type": "Expression"
+								}
+							}
+						}
+					},
+					"compute": {
+						"coreCount": 8,
+						"computeType": "General"
+					},
+					"traceLevel": "Fine"
+				}
+			},
+			{
+				"name": "df_visit",
+				"type": "ExecuteDataFlow",
+				"dependsOn": [
+					{
+						"activity": "df_hospital",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "df_patient",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "df_diagnosis",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataflow": {
+						"referenceName": "df_staging_visit",
+						"type": "DataFlowReference",
+						"parameters": {
+							"runId": {
+								"value": "'@{pipeline().parameters.runId}'",
+								"type": "Expression"
+							}
+						},
+						"datasetParameters": {
+							"srcVisit": {
+								"folderPath": {
+									"value": "@concat('visit/', pipeline().parameters.runDate, '/', pipeline().parameters.runId)",
+									"type": "Expression"
+								},
+								"fileName": "visit_raw.csv"
+							},
+							"srcPatientOK": {
+								"folderPath": {
+									"value": "@concat('patient/accepted/', pipeline().parameters.runId)",
+									"type": "Expression"
+								}
+							},
+							"srcHospitalOK": {
+								"folderPath": {
+									"value": "@concat('hospital/accepted/', pipeline().parameters.runId)",
+									"type": "Expression"
+								}
+							},
+							"srcDiagnosisOK": {
+								"folderPath": {
+									"value": "@concat('diagnosis/accepted/', pipeline().parameters.runId)",
+									"type": "Expression"
+								}
+							},
+							"sinkAccepted": {
+								"folderPath": {
+									"value": "@concat('visit/accepted/', pipeline().parameters.runId)",
+									"type": "Expression"
+								}
+							},
+							"sinkRejected": {
+								"folderPath": {
+									"value": "@concat('visit/rejected/', pipeline().parameters.runId)",
+									"type": "Expression"
+								}
+							}
+						}
+					},
+					"compute": {
+						"coreCount": 8,
+						"computeType": "General"
+					},
+					"traceLevel": "Fine"
+				}
+			}
+		],
+		"parameters": {
+			"runId": {
+				"type": "string",
+				"defaultValue": "38682d12-454e-4ea8-9ccc-11e66ab5069a"
+			},
+			"runDate": {
+				"type": "string",
+				"defaultValue": "2026-10-21"
+			}
+		},
+		"annotations": [],
+		"lastPublishTime": "2026-10-25T23:32:10Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

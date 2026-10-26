@@ -1,0 +1,17 @@
+{
+	"name": "ls_vm_files",
+	"type": "Microsoft.DataFactory/factories/linkedservices",
+	"properties": {
+		"annotations": [],
+		"type": "FileServer",
+		"typeProperties": {
+			"host": "C:\\Healthcaresource",
+			"userId": "azureuserAnupa",
+			"encryptedCredential": "eyJDcmVkZW50aWFsSWQiOiJkOTM0YTg1OS1jYmY1LTQwM2EtOTE1NS0xODMyNzgzZmEyYzEiLCJWZXJzaW9uIjoiMi4wIiwiQ2xhc3NUeXBlIjoiTWljcm9zb2Z0LkRhdGFQcm94eS5Db3JlLkludGVyU2VydmljZURhdGFDb250cmFjdC5DcmVkZW50aWFsU1UwNkNZMTQifQ=="
+		},
+		"connectVia": {
+			"referenceName": "shir-healthcare-vm",
+			"type": "IntegrationRuntimeReference"
+		}
+	}
+}

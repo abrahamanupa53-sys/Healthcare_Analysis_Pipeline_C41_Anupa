@@ -1,0 +1,219 @@
+{
+	"name": "df_staging_visit",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "ds_landing_csv",
+						"type": "DatasetReference"
+					},
+					"name": "srcVisit"
+				},
+				{
+					"dataset": {
+						"referenceName": "ds_staging_parquet",
+						"type": "DatasetReference"
+					},
+					"name": "srcPatientOK"
+				},
+				{
+					"dataset": {
+						"referenceName": "ds_staging_parquet",
+						"type": "DatasetReference"
+					},
+					"name": "srcHospitalOK"
+				},
+				{
+					"dataset": {
+						"referenceName": "ds_staging_parquet",
+						"type": "DatasetReference"
+					},
+					"name": "srcDiagnosisOK"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "ds_staging_parquet",
+						"type": "DatasetReference"
+					},
+					"name": "sinkAccepted"
+				},
+				{
+					"dataset": {
+						"referenceName": "ds_staging_parquet",
+						"type": "DatasetReference"
+					},
+					"name": "sinkRejected"
+				}
+			],
+			"transformations": [
+				{
+					"name": "keyPatient"
+				},
+				{
+					"name": "keyHospital"
+				},
+				{
+					"name": "keyDiagnosis"
+				},
+				{
+					"name": "cleanVisit"
+				},
+				{
+					"name": "checkVisit"
+				},
+				{
+					"name": "addReason"
+				},
+				{
+					"name": "dedupVisit"
+				},
+				{
+					"name": "lkpPatient"
+				},
+				{
+					"name": "lkpHospital"
+				},
+				{
+					"name": "lkpDiagnosis"
+				},
+				{
+					"name": "checkRefs"
+				},
+				{
+					"name": "addRefReason"
+				},
+				{
+					"name": "selAccepted"
+				},
+				{
+					"name": "selRejected"
+				},
+				{
+					"name": "allRejected"
+				}
+			],
+			"scriptLines": [
+				"parameters{",
+				"     runId as string",
+				"}",
+				"source(output(",
+				"          visit_id as string,",
+				"          patient_id as string,",
+				"          hospital_id as string,",
+				"          admission_date as date 'yyyy-MM-dd',",
+				"          discharge_date as date 'yyyy-MM-dd',",
+				"          diagnosis_code as string,",
+				"          cost as double",
+				"     ),",
+				"     allowSchemaDrift: false,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false) ~> srcVisit",
+				"source(output(",
+				"          patient_id as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false,",
+				"     format: 'parquet') ~> srcPatientOK",
+				"source(output(",
+				"          hospital_id as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false,",
+				"     format: 'parquet') ~> srcHospitalOK",
+				"source(output(",
+				"          diagnosis_code as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false,",
+				"     format: 'parquet') ~> srcDiagnosisOK",
+				"srcPatientOK select(mapColumn(",
+				"          p_id = patient_id",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> keyPatient",
+				"srcHospitalOK select(mapColumn(",
+				"          h_id = hospital_id",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> keyHospital",
+				"srcDiagnosisOK select(mapColumn(",
+				"          d_code = diagnosis_code",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> keyDiagnosis",
+				"srcVisit derive(visit_id = upper(trim(visit_id)),",
+				"          patient_id = upper(trim(patient_id)),",
+				"          hospital_id = upper(trim(hospital_id)),",
+				"          diagnosis_code = upper(trim(diagnosis_code)),",
+				"          batch_id = $runId) ~> cleanVisit",
+				"cleanVisit split(isNull(visit_id) || isNull(patient_id) || isNull(hospital_id) || isNull(diagnosis_code) || isNull(admission_date) || admission_date > currentDate() || (!isNull(discharge_date) && discharge_date < admission_date) || isNull(cost) || cost < 0,",
+				"     disjoint: false) ~> checkVisit@(rejected, accepted)",
+				"checkVisit@rejected derive(reject_reason = case(isNull(visit_id) || isNull(patient_id) || isNull(hospital_id) || isNull(diagnosis_code), 'Missing ID', isNull(admission_date), 'Missing or invalid admission_date', admission_date > currentDate(), 'admission_date in future', !isNull(discharge_date) && discharge_date < admission_date, 'discharge before admission', 'Invalid cost')) ~> addReason",
+				"checkVisit@accepted aggregate(groupBy(visit_id),",
+				"     each(match(name!='visit_id'), $$ = first($$))) ~> dedupVisit",
+				"dedupVisit, keyPatient lookup(patient_id == p_id,",
+				"     multiple: false,",
+				"     pickup: 'any',",
+				"     broadcast: 'auto')~> lkpPatient",
+				"lkpPatient, keyHospital lookup(hospital_id == h_id,",
+				"     multiple: false,",
+				"     pickup: 'any',",
+				"     broadcast: 'auto')~> lkpHospital",
+				"lkpHospital, keyDiagnosis lookup(diagnosis_code == d_code,",
+				"     multiple: false,",
+				"     pickup: 'any',",
+				"     broadcast: 'auto')~> lkpDiagnosis",
+				"lkpDiagnosis split(isNull(p_id) || isNull(h_id) || isNull(d_code),",
+				"     disjoint: false) ~> checkRefs@(unknownRef, matched)",
+				"checkRefs@unknownRef derive(reject_reason = case(isNull(p_id), 'Unknown patient_id', isNull(h_id), 'Unknown hospital_id', 'Unknown diagnosis_code')) ~> addRefReason",
+				"checkRefs@matched select(mapColumn(",
+				"          visit_id,",
+				"          patient_id,",
+				"          hospital_id,",
+				"          admission_date,",
+				"          discharge_date,",
+				"          diagnosis_code,",
+				"          cost,",
+				"          batch_id",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> selAccepted",
+				"addRefReason select(mapColumn(",
+				"          visit_id,",
+				"          patient_id,",
+				"          hospital_id,",
+				"          admission_date,",
+				"          discharge_date,",
+				"          diagnosis_code,",
+				"          cost,",
+				"          batch_id,",
+				"          reject_reason",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> selRejected",
+				"addReason, selRejected union(byName: true)~> allRejected",
+				"selAccepted sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'parquet',",
+				"     truncate: true,",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: []) ~> sinkAccepted",
+				"allRejected sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'parquet',",
+				"     truncate: true,",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: []) ~> sinkRejected"
+			]
+		}
+	}
+}

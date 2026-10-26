@@ -1,0 +1,92 @@
+{
+	"name": "df_staging_patient",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "ds_landing_csv",
+						"type": "DatasetReference"
+					},
+					"name": "srcPatient"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "ds_staging_parquet",
+						"type": "DatasetReference"
+					},
+					"name": "sinkAccepted"
+				},
+				{
+					"dataset": {
+						"referenceName": "ds_staging_parquet",
+						"type": "DatasetReference"
+					},
+					"name": "sinkRejected"
+				}
+			],
+			"transformations": [
+				{
+					"name": "cleanPatient"
+				},
+				{
+					"name": "checkPatient"
+				},
+				{
+					"name": "addReasontoreject"
+				},
+				{
+					"name": "dedupPatient"
+				}
+			],
+			"scriptLines": [
+				"parameters{",
+				"     runId as string",
+				"}",
+				"source(output(",
+				"          patient_id as string,",
+				"          first_name as string,",
+				"          last_name as string,",
+				"          gender as string,",
+				"          dob as date,",
+				"          city as string",
+				"     ),",
+				"     allowSchemaDrift: false,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false) ~> srcPatient",
+				"srcPatient derive(first_name = trim(first_name),",
+				"          last_name = trim(last_name),",
+				"          city = initCap(trim(city)),",
+				"          gender = upper(trim(gender)),",
+				"          patient_id = upper(trim(patient_id)),",
+				"          batch_id = $runId) ~> cleanPatient",
+				"cleanPatient split(isNull(patient_id) || isNull(dob) || dob > currentDate() || !in(['M','F'], gender),",
+				"     disjoint: false) ~> checkPatient@(rejected, accepted)",
+				"checkPatient@rejected derive(reject_reason = case(isNull(patient_id), 'Missing patient_id', isNull(dob), 'Missing or invalid dob', dob > currentDate(), 'dob in future', 'Invalid gender')) ~> addReasontoreject",
+				"checkPatient@accepted aggregate(groupBy(patient_id),",
+				"     each(match(name!='patient_id'), $$ = first($$))) ~> dedupPatient",
+				"dedupPatient sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'parquet',",
+				"     truncate: true,",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: [],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> sinkAccepted",
+				"addReasontoreject sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'parquet',",
+				"     truncate: true,",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: [],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> sinkRejected"
+			]
+		}
+	}
+}

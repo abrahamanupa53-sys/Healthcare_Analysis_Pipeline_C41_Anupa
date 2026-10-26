@@ -1,0 +1,84 @@
+{
+	"name": "df_staging_Hospital",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "ds_landing_csv",
+						"type": "DatasetReference"
+					},
+					"name": "srcHospital"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "ds_staging_parquet",
+						"type": "DatasetReference"
+					},
+					"name": "sinkAccepted"
+				},
+				{
+					"dataset": {
+						"referenceName": "ds_staging_parquet",
+						"type": "DatasetReference"
+					},
+					"name": "sinkRejected"
+				}
+			],
+			"transformations": [
+				{
+					"name": "cleanHospital"
+				},
+				{
+					"name": "checkHospital"
+				},
+				{
+					"name": "addReason"
+				},
+				{
+					"name": "dedupHospital"
+				}
+			],
+			"scriptLines": [
+				"parameters{",
+				"     runId as string",
+				"}",
+				"source(output(",
+				"          hospital_id as string,",
+				"          hospital_name as string,",
+				"          city as string,",
+				"          bed_count as integer",
+				"     ),",
+				"     allowSchemaDrift: false,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false) ~> srcHospital",
+				"srcHospital derive(hospital_id = upper(trim(hospital_id)),",
+				"          hospital_name = trim(hospital_name),",
+				"          city = initCap(trim(city)),",
+				"          batch_id = $runId) ~> cleanHospital",
+				"cleanHospital split(isNull(hospital_id) || isNull(hospital_name) || isNull(bed_count) || bed_count <= 0,",
+				"     disjoint: false) ~> checkHospital@(rejected, accepted)",
+				"checkHospital@rejected derive(reject_reason = case(isNull(hospital_id), 'Missing hospital_id', isNull(hospital_name), 'Missing hospital_name', 'Invalid bed_count')) ~> addReason",
+				"checkHospital@accepted aggregate(groupBy(hospital_id),",
+				"     each(match(name!='hospital_id'), $$ = first($$))) ~> dedupHospital",
+				"dedupHospital sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'parquet',",
+				"     truncate: true,",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: []) ~> sinkAccepted",
+				"addReason sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'parquet',",
+				"     truncate: true,",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: []) ~> sinkRejected"
+			]
+		}
+	}
+}

@@ -1,0 +1,81 @@
+{
+	"name": "df_staging_diagnosis",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "ds_landing_csv",
+						"type": "DatasetReference"
+					},
+					"name": "srcDiagnosis"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "ds_staging_parquet",
+						"type": "DatasetReference"
+					},
+					"name": "sinkAccepted"
+				},
+				{
+					"dataset": {
+						"referenceName": "ds_staging_parquet",
+						"type": "DatasetReference"
+					},
+					"name": "sinkRejected"
+				}
+			],
+			"transformations": [
+				{
+					"name": "cleanDiagnosis"
+				},
+				{
+					"name": "checkDiagnosis"
+				},
+				{
+					"name": "addReason"
+				},
+				{
+					"name": "dedupDiagnosis"
+				}
+			],
+			"scriptLines": [
+				"parameters{",
+				"     runId as string",
+				"}",
+				"source(output(",
+				"          diagnosis_code as string,",
+				"          diagnosis_desc as string",
+				"     ),",
+				"     allowSchemaDrift: false,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false) ~> srcDiagnosis",
+				"srcDiagnosis derive(diagnosis_code = upper(trim(diagnosis_code)),",
+				"          diagnosis_desc = trim(diagnosis_desc),",
+				"          batch_id = $runId) ~> cleanDiagnosis",
+				"cleanDiagnosis split(isNull(diagnosis_code) || isNull(diagnosis_desc) || diagnosis_desc == '',",
+				"     disjoint: false) ~> checkDiagnosis@(rejected, accepted)",
+				"checkDiagnosis@rejected derive(reject_reason = case(isNull(diagnosis_code), 'Missing diagnosis_code', 'Missing diagnosis_desc')) ~> addReason",
+				"checkDiagnosis@accepted aggregate(groupBy(diagnosis_code),",
+				"     each(match(name!='diagnosis_code'), $$ = first($$))) ~> dedupDiagnosis",
+				"dedupDiagnosis sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'parquet',",
+				"     truncate: true,",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: []) ~> sinkAccepted",
+				"addReason sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'parquet',",
+				"     truncate: true,",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: []) ~> sinkRejected"
+			]
+		}
+	}
+}

@@ -1,0 +1,15 @@
+{
+	"name": "adf-healthcare-anupa79",
+	"properties": {
+		"trustModeClaimForMi": {
+			"value": "Disabled",
+			"editable": true
+		}
+	},
+	"location": "eastus",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "3de48332-6cf5-436a-ab68-3f89291c155d",
+		"tenantId": "6ae0206c-4198-4056-8b17-f9df56a688af"
+	}
+}

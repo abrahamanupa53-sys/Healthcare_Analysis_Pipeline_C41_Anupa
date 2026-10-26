@@ -1,0 +1,94 @@
+{
+	"name": "pl_master",
+	"properties": {
+		"activities": [
+			{
+				"name": "run_ingest",
+				"type": "ExecutePipeline",
+				"dependsOn": [],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pl_ingest_landing",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"fileList": {
+							"value": "@createArray('patient_raw.csv','hospital_raw.csv','diagnosis_raw.csv','visit_raw.csv')",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "run_staging",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "run_ingest",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pl_staging",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"runId": {
+							"value": "@activity('run_ingest').output.pipelineRunId",
+							"type": "Expression"
+						},
+						"runDate": {
+							"value": "@formatDateTime(utcnow(), 'yyyy-MM-dd')",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "run_load_sql",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "run_staging",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pl_load_sql",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"runId": {
+							"value": "@activity('run_ingest').output.pipelineRunId",
+							"type": "Expression"
+						}
+					}
+				}
+			}
+		],
+		"annotations": [],
+		"lastPublishTime": "2026-10-25T23:33:27Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

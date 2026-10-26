@@ -1,0 +1,6 @@
+{
+	"name": "shir-healthcare-vm",
+	"properties": {
+		"type": "SelfHosted"
+	}
+}
